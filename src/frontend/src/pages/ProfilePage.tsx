@@ -46,8 +46,15 @@ export function ProfilePage() {
       });
       toast.success("Profile updated!");
       setEditOpen(false);
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Phone number already in use")) {
+        toast.error(
+          "This phone number is already registered to another account.",
+        );
+      } else {
+        toast.error("Failed to update profile. Please try again.");
+      }
     }
   };
 

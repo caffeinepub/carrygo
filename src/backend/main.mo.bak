@@ -121,17 +121,6 @@ actor {
 
   include MixinAuthorization(accessControlState);
 
-
-  // Internal helper: check if phone is used by a different principal
-  func isPhoneTakenByOther(phone : Text, excludePrincipal : Principal) : Bool {
-    for ((p, profile) in userProfiles.entries()) {
-      if (Text.equal(profile.phone, phone) and not Principal.equal(p, excludePrincipal)) {
-        return true;
-      };
-    };
-    false;
-  };
-
   // Internal helper to add notification for a user
   func addNotification(recipient : Principal, message : Text, notifType : NotificationType, parcelIdx : ?Nat, tripIdx : ?Nat) {
     let notif : Notification = {
@@ -179,16 +168,12 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can create or update profiles");
     };
-    if (isPhoneTakenByOther(phone, caller)) {
-      Runtime.trap("Phone number already in use by another account");
-    };
-    let profile : UserProfile = switch (userProfiles.get(caller)) {
-      case (?existing) {
-        { existing with name; phone };
-      };
-      case (null) {
-        { name; phone; rating = 0.0; completedDeliveries = 0; blocked = false };
-      };
+    let profile : UserProfile = {
+      name;
+      phone;
+      rating = 0.0;
+      completedDeliveries = 0;
+      blocked = false;
     };
     userProfiles.add(caller, profile);
   };

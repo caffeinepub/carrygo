@@ -34,8 +34,15 @@ export function AuthPage({ needsProfile }: Props) {
       });
       toast.success("Profile created!");
       navigate("home");
-    } catch {
-      toast.error("Failed to create profile");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Phone number already in use")) {
+        toast.error(
+          "This phone number is already registered. Please use a different number.",
+        );
+      } else {
+        toast.error("Failed to create profile. Please try again.");
+      }
     }
   };
 
