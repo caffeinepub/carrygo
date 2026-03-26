@@ -1,0 +1,111 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* CarryGo Brand Tokens */
+    --carry-charcoal: 0.22 0.012 240;
+    --carry-charcoal-dark: 0.18 0.012 240;
+    --carry-blue: 0.57 0.22 260;
+    --carry-blue-hover: 0.52 0.22 260;
+    --carry-mint: 0.94 0.065 150;
+    --carry-mint-text: 0.47 0.15 150;
+    --carry-gold: 0.83 0.16 80;
+    --carry-panel: 0.96 0.02 245;
+
+    /* Semantic Tokens */
+    --background: 1 0 0;
+    --foreground: 0.16 0.01 240;
+    --card: 1 0 0;
+    --card-foreground: 0.16 0.01 240;
+    --popover: 1 0 0;
+    --popover-foreground: 0.16 0.01 240;
+    --primary: 0.57 0.22 260;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.96 0.02 245;
+    --secondary-foreground: 0.16 0.01 240;
+    --muted: 0.96 0.02 245;
+    --muted-foreground: 0.52 0.025 240;
+    --accent: 0.96 0.02 245;
+    --accent-foreground: 0.16 0.01 240;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 1 0 0;
+    --border: 0.93 0.01 240;
+    --input: 0.93 0.01 240;
+    --ring: 0.57 0.22 260;
+    --chart-1: 0.57 0.22 260;
+    --chart-2: 0.47 0.15 150;
+    --chart-3: 0.83 0.16 80;
+    --chart-4: 0.577 0.245 27.325;
+    --chart-5: 0.52 0.025 240;
+    --sidebar: 0.96 0.02 245;
+    --sidebar-foreground: 0.16 0.01 240;
+    --sidebar-primary: 0.57 0.22 260;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.93 0.01 240;
+    --sidebar-accent-foreground: 0.16 0.01 240;
+    --sidebar-border: 0.93 0.01 240;
+    --sidebar-ring: 0.57 0.22 260;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-jakarta;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+@layer utilities {
+  .bg-charcoal {
+    background-color: oklch(var(--carry-charcoal));
+  }
+  .bg-charcoal-dark {
+    background-color: oklch(var(--carry-charcoal-dark));
+  }
+  .bg-carry-blue {
+    background-color: oklch(var(--carry-blue));
+  }
+  .bg-carry-panel {
+    background-color: oklch(var(--carry-panel));
+  }
+  .bg-carry-mint {
+    background-color: oklch(var(--carry-mint));
+  }
+  .text-carry-blue {
+    color: oklch(var(--carry-blue));
+  }
+  .text-carry-mint {
+    color: oklch(var(--carry-mint-text));
+  }
+  .text-carry-gold {
+    color: oklch(var(--carry-gold));
+  }
+  .text-charcoal {
+    color: oklch(var(--carry-charcoal));
+  }
+  .border-carry-blue {
+    border-color: oklch(var(--carry-blue));
+  }
+  .ring-carry-blue {
+    --tw-ring-color: oklch(var(--carry-blue));
+  }
+  .shadow-card {
+    box-shadow: 0 2px 12px 0 rgba(31, 36, 40, 0.08), 0 1px 3px 0
+      rgba(31, 36, 40, 0.05);
+  }
+}
