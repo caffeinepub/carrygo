@@ -1,7 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Boxes, Clock, MapPin, Package, TrendingUp, Users } from "lucide-react";
+import {
+  Boxes,
+  Clock,
+  MapPin,
+  Navigation,
+  Package,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +18,8 @@ import { ParcelStatus } from "../backend.d";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   useAcceptParcel,
+  useAllParcels,
+  useAllTrips,
   useMatchingParcels,
   useMatchingTrips,
   useMyParcels,
@@ -122,6 +132,69 @@ function TravelersForRoute({ parcel }: { parcel: Parcel }) {
   );
 }
 
+function TravelersNearYou({ parcel }: { parcel: Parcel }) {
+  const { data: allTrips = [], isLoading } = useAllTrips();
+
+  if (isLoading) return null;
+
+  const matches = (allTrips as Trip[]).filter(
+    (trip) =>
+      trip.fromLocation.city.toLowerCase() ===
+      parcel.pickupLocation.city.toLowerCase(),
+  );
+
+  if (matches.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mt-3 pt-3 border-t border-border"
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <Navigation size={12} className="text-emerald-600" />
+        <span className="text-xs font-bold text-emerald-600">
+          Travelers Near You
+        </span>
+      </div>
+      <div className="space-y-2">
+        {matches.map((trip, i) => (
+          <div
+            key={`near-traveler-${trip.fromLocation.city}-${trip.toLocation.city}-${i}`}
+            className="bg-muted/60 rounded-xl p-3"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <MapPin size={11} className="text-muted-foreground" />
+                  <span className="text-xs font-semibold">
+                    {trip.fromLocation.city} → {trip.toLocation.city}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(
+                    Number(trip.travelDate / 1_000_000n),
+                  ).toLocaleDateString()}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-ocid={`travelers_near.contact.button.${i + 1}`}
+                className="h-7 text-xs rounded-full px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                onClick={() => window.open("https://wa.me/", "_blank")}
+              >
+                Contact
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 function ParcelsOnRoute({ trip }: { trip: Trip }) {
   const { data: parcels = [], isLoading } = useMatchingParcels(
     trip.fromLocation,
@@ -209,6 +282,72 @@ function ParcelsOnRoute({ trip }: { trip: Trip }) {
                   {acceptingIdx === i ? "..." : "Accept"}
                 </Button>
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function ParcelsNearYou({ trip }: { trip: Trip }) {
+  const { data: allParcels = [], isLoading } = useAllParcels();
+
+  if (isLoading) return null;
+
+  const matches = (allParcels as Parcel[]).filter(
+    (parcel) =>
+      parcel.pickupLocation.city.toLowerCase() ===
+      trip.fromLocation.city.toLowerCase(),
+  );
+
+  if (matches.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mt-3 pt-3 border-t border-border"
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <Package size={12} className="text-emerald-600" />
+        <span className="text-xs font-bold text-emerald-600">
+          Parcels Near You
+        </span>
+      </div>
+      <div className="space-y-2">
+        {matches.map((parcel, i) => (
+          <div
+            key={`near-parcel-${parcel.pickupLocation.city}-${parcel.dropLocation.city}-${i}`}
+            className="bg-muted/60 rounded-xl p-3"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <MapPin size={11} className="text-muted-foreground" />
+                  <span className="text-xs font-semibold">
+                    {parcel.pickupLocation.city} → {parcel.dropLocation.city}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {parcel.parcelType}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-600">
+                    ₹{parcel.priceOffered.toString()}
+                  </span>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                data-ocid={`parcels_near.contact.button.${i + 1}`}
+                className="h-7 text-xs rounded-full px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                onClick={() => window.open("https://wa.me/", "_blank")}
+              >
+                Contact
+              </Button>
             </div>
           </div>
         ))}
@@ -334,6 +473,7 @@ export function MyListingsPage() {
                         </Button>
                       )}
                       <TravelersForRoute parcel={parcel} />
+                      <TravelersNearYou parcel={parcel} />
                     </motion.div>
                   );
                 })}
@@ -399,6 +539,7 @@ export function MyListingsPage() {
                       {trip.capacityDescription}
                     </p>
                     <ParcelsOnRoute trip={trip} />
+                    <ParcelsNearYou trip={trip} />
                   </motion.div>
                 ))}
               </div>

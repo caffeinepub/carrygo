@@ -122,14 +122,23 @@ actor {
   include MixinAuthorization(accessControlState);
 
 
-  // Internal helper: check if phone is used by a different principal
-  func isPhoneTakenByOther(phone : Text, excludePrincipal : Principal) : Bool {
+  // Internal helper: find profile by phone number
+  func findProfileByPhone(phone : Text) : ?UserProfile {
+    var result : ?UserProfile = null;
     for ((p, profile) in userProfiles.entries()) {
-      if (Text.equal(profile.phone, phone) and not Principal.equal(p, excludePrincipal)) {
-        return true;
+      if (Text.equal(profile.phone, phone)) {
+        result := ?profile;
       };
     };
-    false;
+    result;
+  };
+
+  // Public query: look up a profile by phone (for cross-device login check)
+  public query ({ caller }) func getProfileByPhone(phone : Text) : async ?UserProfile {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized");
+    };
+    findProfileByPhone(phone);
   };
 
   // Internal helper to add notification for a user
@@ -179,15 +188,22 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can create or update profiles");
     };
-    if (isPhoneTakenByOther(phone, caller)) {
-      Runtime.trap("Phone number already in use by another account");
-    };
+    // If caller already has a profile, update it
+    // If not, try to inherit from an existing profile with the same phone (cross-device login)
     let profile : UserProfile = switch (userProfiles.get(caller)) {
       case (?existing) {
         { existing with name; phone };
       };
       case (null) {
-        { name; phone; rating = 0.0; completedDeliveries = 0; blocked = false };
+        switch (findProfileByPhone(phone)) {
+          case (?base) {
+            // Inherit rating and delivery count from the existing phone profile
+            { base with name; phone; blocked = false };
+          };
+          case (null) {
+            { name; phone; rating = 0.0; completedDeliveries = 0; blocked = false };
+          };
+        };
       };
     };
     userProfiles.add(caller, profile);

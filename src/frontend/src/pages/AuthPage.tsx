@@ -7,7 +7,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigation } from "../context/NavigationContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useCreateProfile } from "../hooks/useQueries";
+import { useCheckProfileByPhone, useCreateProfile } from "../hooks/useQueries";
 
 interface Props {
   needsProfile: boolean;
@@ -17,10 +17,46 @@ export function AuthPage({ needsProfile }: Props) {
   const { login, isLoggingIn } = useInternetIdentity();
   const { navigate } = useNavigation();
   const createProfile = useCreateProfile();
+  const checkProfileByPhone = useCheckProfileByPhone();
 
-  const [name, setName] = useState("");
+  // step: 'login' | 'phone-check' | 'profile-setup'
+  const [step, setStep] = useState<"login" | "phone-check" | "profile-setup">(
+    needsProfile ? "phone-check" : "login",
+  );
   const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
 
+  // Step 1: User enters their phone number after login
+  // We check if a profile already exists for that phone
+  const handlePhoneCheck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phone.trim()) {
+      toast.error("Please enter your phone number");
+      return;
+    }
+    setIsChecking(true);
+    try {
+      const existingProfile = await checkProfileByPhone(phone.trim());
+      if (existingProfile) {
+        // Profile found — claim it for this principal and go to dashboard
+        await createProfile.mutateAsync({
+          name: existingProfile.name,
+          phone: phone.trim(),
+        });
+        // useOwnProfile query will be invalidated → App.tsx re-renders → dashboard
+      } else {
+        // No profile for this phone — proceed to full setup
+        setStep("profile-setup");
+      }
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  // Step 2 (only for new users): enter name + confirm phone
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) {
@@ -36,17 +72,76 @@ export function AuthPage({ needsProfile }: Props) {
       navigate("home");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("Phone number already in use")) {
-        toast.error(
-          "This phone number is already registered. Please use a different number.",
-        );
-      } else {
-        toast.error("Failed to create profile. Please try again.");
-      }
+      toast.error(
+        msg.includes("Phone")
+          ? msg
+          : "Failed to create profile. Please try again.",
+      );
     }
   };
 
-  if (needsProfile) {
+  // ── Phone Check Screen ──────────────────────────────────────────────────────
+  if (step === "phone-check") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-9 h-9 rounded-xl bg-carry-blue flex items-center justify-center">
+              <Package size={18} className="text-white" />
+            </div>
+            <span className="text-xl font-extrabold text-foreground">
+              CarryGo
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-extrabold text-foreground mb-1">
+            Welcome back
+          </h1>
+          <p className="text-muted-foreground text-sm mb-6">
+            Enter your phone number to continue.
+          </p>
+
+          <form onSubmit={handlePhoneCheck} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="phone-check-input">Phone Number</Label>
+              <Input
+                id="phone-check-input"
+                data-ocid="auth.phone_check.input"
+                placeholder="+91 9876543210"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="rounded-xl h-12"
+                autoFocus
+              />
+            </div>
+
+            <Button
+              type="submit"
+              data-ocid="auth.phone_check.submit"
+              disabled={isChecking || createProfile.isPending}
+              className="w-full h-12 rounded-full bg-carry-blue hover:bg-carry-blue/90 text-white font-bold text-sm"
+            >
+              {isChecking || createProfile.isPending ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  Continue <ArrowRight size={16} className="ml-1" />
+                </>
+              )}
+            </Button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Profile Setup Screen (new users only) ───────────────────────────────────
+  if (step === "profile-setup") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <motion.div
@@ -67,7 +162,7 @@ export function AuthPage({ needsProfile }: Props) {
             Set up your profile
           </h1>
           <p className="text-muted-foreground text-sm mb-6">
-            Tell us a bit about yourself to get started.
+            Tell us your name to get started.
           </p>
 
           <form onSubmit={handleProfileSubmit} className="space-y-4">
@@ -80,18 +175,19 @@ export function AuthPage({ needsProfile }: Props) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="rounded-xl h-12"
+                autoFocus
               />
             </div>
+            {/* Phone is already known from the phone-check step */}
             <div className="space-y-1.5">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone-display">Phone Number</Label>
               <Input
-                id="phone"
+                id="phone-display"
                 data-ocid="profile.phone.input"
-                placeholder="+91 9876543210"
-                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="rounded-xl h-12"
+                type="tel"
               />
             </div>
 
@@ -127,6 +223,7 @@ export function AuthPage({ needsProfile }: Props) {
     );
   }
 
+  // ── Login Screen ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-charcoal flex flex-col">
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">

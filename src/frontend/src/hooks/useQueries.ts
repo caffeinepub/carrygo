@@ -4,6 +4,7 @@ import type {
   Location,
   Notification,
   ParcelStatus,
+  UserProfile,
   UserRole,
 } from "../backend.d";
 import { useActor } from "./useActor";
@@ -170,6 +171,17 @@ export function useCreateProfile() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ownProfile"] }),
   });
+}
+
+// Check if a profile exists for a given phone number (used for cross-device login)
+export function useCheckProfileByPhone() {
+  const { actor } = useActor();
+  return async (phone: string): Promise<UserProfile | null> => {
+    if (!actor) throw new Error("Not connected");
+    // Returns [] | [UserProfile] in Candid format
+    const result = await (actor as any).getProfileByPhone(phone);
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  };
 }
 
 export function usePostParcel() {
