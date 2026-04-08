@@ -108,7 +108,8 @@ export function TravelEarnPage() {
       toast.success("Trip posted successfully!");
       setSubmittedToCity(toCity);
       setSubmitted(true);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to post trip");
     }
   };

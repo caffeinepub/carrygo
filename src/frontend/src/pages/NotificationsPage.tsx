@@ -34,7 +34,8 @@ export function NotificationsPage() {
     if (!notif.read) {
       try {
         await markRead.mutateAsync(notif.id);
-      } catch {
+      } catch (err) {
+        console.error(err);
         // ignore
       }
     }
@@ -45,7 +46,8 @@ export function NotificationsPage() {
     try {
       await markAllRead.mutateAsync();
       toast.success("All notifications marked as read");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to mark all read");
     }
   };

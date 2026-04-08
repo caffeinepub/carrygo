@@ -17,7 +17,8 @@ export function useOwnProfile() {
       if (!actor) return null;
       try {
         return await actor.getOwnProfile();
-      } catch {
+      } catch (err) {
+        console.error("[CarryGo] getOwnProfile failed:", err);
         return null;
       }
     },
@@ -31,7 +32,12 @@ export function useIsAdmin() {
     queryKey: ["isAdmin"],
     queryFn: async () => {
       if (!actor) return false;
-      return actor.isCallerAdmin();
+      try {
+        return await actor.isCallerAdmin();
+      } catch (err) {
+        console.error("[CarryGo] isCallerAdmin failed:", err);
+        return false;
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -43,7 +49,12 @@ export function useMyParcels() {
     queryKey: ["myParcels"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getMyParcels();
+      try {
+        return await actor.getMyParcels();
+      } catch (err) {
+        console.error("[CarryGo] getMyParcels failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -55,7 +66,12 @@ export function useMyTrips() {
     queryKey: ["myTrips"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getMyTrips();
+      try {
+        return await actor.getMyTrips();
+      } catch (err) {
+        console.error("[CarryGo] getMyTrips failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -67,7 +83,12 @@ export function useAllParcels() {
     queryKey: ["allParcels"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllParcels();
+      try {
+        return await actor.getAllParcels();
+      } catch (err) {
+        console.error("[CarryGo] getAllParcels failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -79,7 +100,12 @@ export function useAllTrips() {
     queryKey: ["allTrips"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllTrips();
+      try {
+        return await actor.getAllTrips();
+      } catch (err) {
+        console.error("[CarryGo] getAllTrips failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -91,7 +117,12 @@ export function useAllUsers() {
     queryKey: ["allUsers"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllUsers();
+      try {
+        return await actor.getAllUsers();
+      } catch (err) {
+        console.error("[CarryGo] getAllUsers failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -106,7 +137,12 @@ export function useMatchingTrips(
     queryKey: ["matchingTrips", pickup, drop],
     queryFn: async () => {
       if (!actor || !pickup || !drop) return [];
-      return actor.getMatchingTripsForParcel(pickup, drop);
+      try {
+        return await actor.getMatchingTripsForParcel(pickup, drop);
+      } catch (err) {
+        console.error("[CarryGo] getMatchingTripsForParcel failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching && !!pickup && !!drop,
   });
@@ -118,7 +154,12 @@ export function useMatchingParcels(from: Location | null, to: Location | null) {
     queryKey: ["matchingParcels", from, to],
     queryFn: async () => {
       if (!actor || !from || !to) return [];
-      return actor.getMatchingParcelsForTrip(from, to);
+      try {
+        return await actor.getMatchingParcelsForTrip(from, to);
+      } catch (err) {
+        console.error("[CarryGo] getMatchingParcelsForTrip failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching && !!from && !!to,
   });
@@ -130,7 +171,12 @@ export function useMyNotifications() {
     queryKey: ["myNotifications"],
     queryFn: async () => {
       if (!actor) return [];
-      return (actor as any).getMyNotifications();
+      try {
+        return await (actor as any).getMyNotifications();
+      } catch (err) {
+        console.error("[CarryGo] getMyNotifications failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 30000,
@@ -143,7 +189,12 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: async (id: bigint) => {
       if (!actor) throw new Error("Not connected");
-      return (actor as any).markNotificationRead(id);
+      try {
+        return await (actor as any).markNotificationRead(id);
+      } catch (err) {
+        console.error("[CarryGo] markNotificationRead failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["myNotifications"] }),
   });
@@ -155,7 +206,12 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("Not connected");
-      return (actor as any).markAllNotificationsRead();
+      try {
+        return await (actor as any).markAllNotificationsRead();
+      } catch (err) {
+        console.error("[CarryGo] markAllNotificationsRead failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["myNotifications"] }),
   });
@@ -167,7 +223,12 @@ export function useCreateProfile() {
   return useMutation({
     mutationFn: async ({ name, phone }: { name: string; phone: string }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.createOrUpdateProfile(name, phone);
+      try {
+        return await actor.createOrUpdateProfile(name, phone);
+      } catch (err) {
+        console.error("[CarryGo] createOrUpdateProfile failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ownProfile"] }),
   });
@@ -178,9 +239,14 @@ export function useCheckProfileByPhone() {
   const { actor } = useActor();
   return async (phone: string): Promise<UserProfile | null> => {
     if (!actor) throw new Error("Not connected");
-    // Returns [] | [UserProfile] in Candid format
-    const result = await (actor as any).getProfileByPhone(phone);
-    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+    try {
+      // Returns [] | [UserProfile] in Candid format
+      const result = await (actor as any).getProfileByPhone(phone);
+      return Array.isArray(result) && result.length > 0 ? result[0] : null;
+    } catch (err) {
+      console.error("[CarryGo] getProfileByPhone failed:", err);
+      return null;
+    }
   };
 }
 
@@ -196,13 +262,18 @@ export function usePostParcel() {
       description: string;
     }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.postParcel(
-        params.pickupLocation,
-        params.dropLocation,
-        params.parcelType,
-        params.priceOffered,
-        params.description,
-      );
+      try {
+        return await actor.postParcel(
+          params.pickupLocation,
+          params.dropLocation,
+          params.parcelType,
+          params.priceOffered,
+          params.description,
+        );
+      } catch (err) {
+        console.error("[CarryGo] postParcel failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["myParcels"] }),
   });
@@ -219,12 +290,17 @@ export function usePostTrip() {
       capacityDescription: string;
     }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.postTrip(
-        params.fromLocation,
-        params.toLocation,
-        params.travelDate,
-        params.capacityDescription,
-      );
+      try {
+        return await actor.postTrip(
+          params.fromLocation,
+          params.toLocation,
+          params.travelDate,
+          params.capacityDescription,
+        );
+      } catch (err) {
+        console.error("[CarryGo] postTrip failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["myTrips"] }),
   });
@@ -236,7 +312,12 @@ export function useAcceptParcel() {
   return useMutation({
     mutationFn: async (parcelIndex: bigint) => {
       if (!actor) throw new Error("Not connected");
-      return actor.acceptParcel(parcelIndex);
+      try {
+        return await actor.acceptParcel(parcelIndex);
+      } catch (err) {
+        console.error("[CarryGo] acceptParcel failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["allParcels"] });
@@ -254,7 +335,12 @@ export function useUpdateParcelStatus() {
       status,
     }: { index: bigint; status: ParcelStatus }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.updateParcelStatus(index, status);
+      try {
+        return await actor.updateParcelStatus(index, status);
+      } catch (err) {
+        console.error("[CarryGo] updateParcelStatus failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["myParcels"] });
@@ -269,7 +355,12 @@ export function useBlockUser() {
   return useMutation({
     mutationFn: async (userId: Principal) => {
       if (!actor) throw new Error("Not connected");
-      return actor.blockUser(userId);
+      try {
+        return await actor.blockUser(userId);
+      } catch (err) {
+        console.error("[CarryGo] blockUser failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["allUsers"] }),
   });
@@ -281,7 +372,12 @@ export function useUnblockUser() {
   return useMutation({
     mutationFn: async (userId: Principal) => {
       if (!actor) throw new Error("Not connected");
-      return actor.unblockUser(userId);
+      try {
+        return await actor.unblockUser(userId);
+      } catch (err) {
+        console.error("[CarryGo] unblockUser failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["allUsers"] }),
   });
@@ -295,7 +391,12 @@ export function useRateUser() {
       rating,
     }: { userId: Principal; rating: number }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.rateUser(userId, rating);
+      try {
+        return await actor.rateUser(userId, rating);
+      } catch (err) {
+        console.error("[CarryGo] rateUser failed:", err);
+        throw err;
+      }
     },
   });
 }
@@ -306,7 +407,12 @@ export function useAssignRole() {
   return useMutation({
     mutationFn: async ({ user, role }: { user: Principal; role: UserRole }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.assignCallerUserRole(user, role);
+      try {
+        return await actor.assignCallerUserRole(user, role);
+      } catch (err) {
+        console.error("[CarryGo] assignCallerUserRole failed:", err);
+        throw err;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["allUsers"] }),
   });

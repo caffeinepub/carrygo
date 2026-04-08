@@ -113,7 +113,8 @@ export function SendParcelPage() {
       toast.success("Parcel posted successfully!");
       setSubmittedDropCity(dropCity);
       setSubmitted(true);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to post parcel");
     }
   };

@@ -1,13 +1,14 @@
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import { BottomNav } from "./components/BottomNav";
 import { NavigationProvider, useNavigation } from "./context/NavigationContext";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
-import { useOwnProfile } from "./hooks/useQueries";
+import { usePhoneAuth } from "./hooks/usePhoneAuth";
 import { AdminPage } from "./pages/AdminPage";
 import { AuthPage } from "./pages/AuthPage";
 import { BrowsePage } from "./pages/BrowsePage";
 import { HomePage } from "./pages/HomePage";
+import { MapPage } from "./pages/MapPage";
 import { MyListingsPage } from "./pages/MyListingsPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -16,28 +17,88 @@ import { TermsPage } from "./pages/TermsPage";
 import { TravelEarnPage } from "./pages/TravelEarnPage";
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-    },
-  },
+  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 });
 
 const TAB_SCREENS = new Set([
   "home",
   "browse",
+  "map",
   "my-listings",
   "profile",
   "notifications",
 ]);
 
-function AppInner() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const { screen, navigate } = useNavigation();
-  const { data: profile, isLoading: profileLoading } = useOwnProfile();
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[CarryGo] App error:", error, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-charcoal flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <p className="text-white font-bold text-lg mb-2">
+            Something went wrong
+          </p>
+          <p className="text-gray-400 text-sm mb-6">
+            {this.state.error?.message ?? "An unexpected error occurred."}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="px-6 py-3 bg-carry-blue text-white font-bold rounded-full text-sm"
+          >
+            Reload App
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
-  if (isInitializing || (identity && profileLoading)) {
+function AppInner() {
+  const { identity, isInitializing, providerMissing } = usePhoneAuth();
+  const { screen, navigate } = useNavigation();
+
+  if (providerMissing) {
+    return (
+      <div className="min-h-screen bg-charcoal flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 flex items-center justify-center mb-4">
+          <span className="text-2xl">⚙️</span>
+        </div>
+        <p className="text-white font-bold text-lg mb-2">Auth not available</p>
+        <p className="text-gray-400 text-sm mb-6">
+          PhoneAuthProvider is missing. Please reload the app.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 bg-carry-blue text-white font-bold rounded-full text-sm"
+        >
+          Reload App
+        </button>
+      </div>
+    );
+  }
+
+  if (isInitializing) {
     return (
       <div className="min-h-screen bg-charcoal flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -72,10 +133,7 @@ function AppInner() {
     return <AuthPage needsProfile={false} />;
   }
 
-  if (!profile) {
-    return <AuthPage needsProfile={true} />;
-  }
-
+  // Login bypassed: skip profile setup, go straight to dashboard
   if (screen === "auth" || screen === "setup-profile") {
     navigate("home");
     return null;
@@ -90,6 +148,7 @@ function AppInner() {
         {screen === "send-parcel" && <SendParcelPage />}
         {screen === "travel-earn" && <TravelEarnPage />}
         {screen === "browse" && <BrowsePage />}
+        {screen === "map" && <MapPage />}
         {screen === "my-listings" && <MyListingsPage />}
         {screen === "profile" && <ProfilePage />}
         {screen === "admin" && <AdminPage />}
@@ -103,11 +162,13 @@ function AppInner() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <NavigationProvider>
-        <AppInner />
-        <Toaster position="top-center" />
-      </NavigationProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <NavigationProvider>
+          <AppInner />
+          <Toaster position="top-center" />
+        </NavigationProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }

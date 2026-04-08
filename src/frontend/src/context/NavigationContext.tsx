@@ -11,7 +11,8 @@ export type Screen =
   | "profile"
   | "admin"
   | "terms"
-  | "notifications";
+  | "notifications"
+  | "map";
 
 interface NavigationContextType {
   screen: Screen;

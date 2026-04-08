@@ -53,7 +53,8 @@ function TravelersForRoute({ parcel }: { parcel: Parcel }) {
     try {
       await acceptParcel.mutateAsync(BigInt(i));
       toast.success("Accepted!");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Could not accept");
     } finally {
       setAcceptingIdx(null);
@@ -208,7 +209,8 @@ function ParcelsOnRoute({ trip }: { trip: Trip }) {
     try {
       await acceptParcel.mutateAsync(BigInt(i));
       toast.success("Accepted!");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Could not accept");
     } finally {
       setAcceptingIdx(null);
@@ -367,7 +369,8 @@ export function MyListingsPage() {
     try {
       await updateStatus.mutateAsync({ index: BigInt(index), status: next });
       toast.success("Status updated!");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to update status");
     } finally {
       setUpdatingIndex(null);

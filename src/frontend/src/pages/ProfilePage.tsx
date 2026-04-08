@@ -13,7 +13,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { StarRating } from "../components/StarRating";
 import { useNavigation } from "../context/NavigationContext";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { usePhoneAuth } from "../hooks/usePhoneAuth";
 import {
   useCreateProfile,
   useIsAdmin,
@@ -24,7 +24,7 @@ export function ProfilePage() {
   const { navigate } = useNavigation();
   const { data: profile, isLoading } = useOwnProfile();
   const { data: isAdmin } = useIsAdmin();
-  const { clear } = useInternetIdentity();
+  const { logout } = usePhoneAuth();
   const updateProfile = useCreateProfile();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -145,7 +145,7 @@ export function ProfilePage() {
           <button
             type="button"
             data-ocid="profile.logout.button"
-            onClick={() => clear()}
+            onClick={() => logout()}
             className="w-full flex items-center gap-3 px-4 py-4 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
           >
             <LogOut size={18} />

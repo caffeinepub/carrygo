@@ -6,57 +6,40 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigation } from "../context/NavigationContext";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useCheckProfileByPhone, useCreateProfile } from "../hooks/useQueries";
+import { usePhoneAuth } from "../hooks/usePhoneAuth";
+import { useCreateProfile } from "../hooks/useQueries";
+
+function isValidPhone(phone: string): boolean {
+  return /^\d{10}$/.test(phone.trim());
+}
 
 interface Props {
   needsProfile: boolean;
 }
 
 export function AuthPage({ needsProfile }: Props) {
-  const { login, isLoggingIn } = useInternetIdentity();
+  const { login, phone: sessionPhone } = usePhoneAuth();
   const { navigate } = useNavigation();
   const createProfile = useCreateProfile();
-  const checkProfileByPhone = useCheckProfileByPhone();
 
-  // step: 'login' | 'phone-check' | 'profile-setup'
-  const [step, setStep] = useState<"login" | "phone-check" | "profile-setup">(
-    needsProfile ? "phone-check" : "login",
-  );
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(sessionPhone ?? "");
   const [name, setName] = useState("");
-  const [isChecking, setIsChecking] = useState(false);
 
-  // Step 1: User enters their phone number after login
-  // We check if a profile already exists for that phone
-  const handlePhoneCheck = async (e: React.FormEvent) => {
+  const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim()) {
+    const trimmed = phone.trim();
+    if (!trimmed) {
       toast.error("Please enter your phone number");
       return;
     }
-    setIsChecking(true);
-    try {
-      const existingProfile = await checkProfileByPhone(phone.trim());
-      if (existingProfile) {
-        // Profile found — claim it for this principal and go to dashboard
-        await createProfile.mutateAsync({
-          name: existingProfile.name,
-          phone: phone.trim(),
-        });
-        // useOwnProfile query will be invalidated → App.tsx re-renders → dashboard
-      } else {
-        // No profile for this phone — proceed to full setup
-        setStep("profile-setup");
-      }
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setIsChecking(false);
+    if (!isValidPhone(trimmed)) {
+      toast.warning("Phone number looks unusual — expected 10 digits", {
+        duration: 3000,
+      });
     }
+    login(trimmed);
   };
 
-  // Step 2 (only for new users): enter name + confirm phone
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) {
@@ -80,68 +63,8 @@ export function AuthPage({ needsProfile }: Props) {
     }
   };
 
-  // ── Phone Check Screen ──────────────────────────────────────────────────────
-  if (step === "phone-check") {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm"
-        >
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-carry-blue flex items-center justify-center">
-              <Package size={18} className="text-white" />
-            </div>
-            <span className="text-xl font-extrabold text-foreground">
-              CarryGo
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-extrabold text-foreground mb-1">
-            Welcome back
-          </h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            Enter your phone number to continue.
-          </p>
-
-          <form onSubmit={handlePhoneCheck} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="phone-check-input">Phone Number</Label>
-              <Input
-                id="phone-check-input"
-                data-ocid="auth.phone_check.input"
-                placeholder="+91 9876543210"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="rounded-xl h-12"
-                autoFocus
-              />
-            </div>
-
-            <Button
-              type="submit"
-              data-ocid="auth.phone_check.submit"
-              disabled={isChecking || createProfile.isPending}
-              className="w-full h-12 rounded-full bg-carry-blue hover:bg-carry-blue/90 text-white font-bold text-sm"
-            >
-              {isChecking || createProfile.isPending ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <>
-                  Continue <ArrowRight size={16} className="ml-1" />
-                </>
-              )}
-            </Button>
-          </form>
-        </motion.div>
-      </div>
-    );
-  }
-
   // ── Profile Setup Screen (new users only) ───────────────────────────────────
-  if (step === "profile-setup") {
+  if (needsProfile) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <motion.div
@@ -178,7 +101,6 @@ export function AuthPage({ needsProfile }: Props) {
                 autoFocus
               />
             </div>
-            {/* Phone is already known from the phone-check step */}
             <div className="space-y-1.5">
               <Label htmlFor="phone-display">Phone Number</Label>
               <Input
@@ -223,18 +145,26 @@ export function AuthPage({ needsProfile }: Props) {
     );
   }
 
-  // ── Login Screen ────────────────────────────────────────────────────────────
+  // ── Phone Input Screen ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-charcoal flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+    <div className="min-h-screen bg-charcoal flex flex-col overflow-hidden">
+      {/* Decorative blobs */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-carry-blue/20 blur-3xl" />
+        <div className="absolute top-1/2 -left-32 w-64 h-64 rounded-full bg-carry-blue/10 blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-48 h-48 rounded-full bg-carry-blue/15 blur-2xl" />
+      </div>
+
+      <div className="relative flex-1 flex flex-col items-center justify-center px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-xs w-full"
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-xs"
         >
+          {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-10">
-            <div className="w-12 h-12 rounded-2xl bg-carry-blue flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-carry-blue flex items-center justify-center shadow-lg shadow-carry-blue/40">
               <Package size={24} className="text-white" />
             </div>
             <span className="text-3xl font-extrabold text-white tracking-tight">
@@ -242,45 +172,64 @@ export function AuthPage({ needsProfile }: Props) {
             </span>
           </div>
 
-          <h1 className="text-3xl font-extrabold text-white uppercase tracking-wide leading-tight mb-3">
-            Ship Smarter.
-            <br />
-            Earn on the Go.
+          <h1 className="text-2xl font-extrabold text-white mb-1 text-center">
+            Get Started
           </h1>
-          <p className="text-gray-400 text-sm mb-10">
-            Connect senders with travelers. Deliver parcels between cities and
-            earn money on your journey.
+          <p className="text-gray-400 text-sm mb-8 text-center">
+            Enter your phone number to continue.
           </p>
 
-          <Button
-            data-ocid="auth.login.button"
-            onClick={() => login()}
-            disabled={isLoggingIn}
-            className="w-full h-13 rounded-full bg-carry-blue hover:bg-carry-blue/90 text-white font-bold text-base py-3.5"
-          >
-            {isLoggingIn ? (
-              <>
-                <Loader2 size={18} className="animate-spin mr-2" />{" "}
-                Connecting...
-              </>
-            ) : (
-              <>
-                Get Started <ArrowRight size={18} className="ml-2" />
-              </>
-            )}
-          </Button>
+          <form onSubmit={handlePhoneSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="phone-input" className="text-gray-300">
+                Phone Number
+              </Label>
+              <Input
+                id="phone-input"
+                data-ocid="auth.phone.input"
+                placeholder="+91 9876543210"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="rounded-xl h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600"
+                autoFocus
+              />
+              {phone.trim().length > 0 && !isValidPhone(phone.trim()) && (
+                <p className="text-xs text-yellow-400/80">
+                  Expected 10 digits — you can still continue.
+                </p>
+              )}
+            </div>
+            <Button
+              type="submit"
+              data-ocid="auth.phone.submit_button"
+              className="w-full h-12 rounded-full bg-carry-blue hover:bg-carry-blue/90 text-white font-bold text-sm shadow-lg shadow-carry-blue/30"
+            >
+              Continue <ArrowRight size={16} className="ml-1" />
+            </Button>
+          </form>
 
-          <p className="mt-6 text-xs text-gray-500">
-            No illegal items allowed. By continuing, you agree to our{" "}
-            <span className="text-gray-400 underline cursor-pointer">
-              Terms &amp; Privacy Policy
-            </span>
-            .
-          </p>
+          {/* Trust badges */}
+          <div className="flex items-center justify-center gap-5 mt-10">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-white font-extrabold text-base">500+</span>
+              <span className="text-gray-600 text-xs">Deliveries</span>
+            </div>
+            <div className="w-px h-7 bg-gray-700" />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-white font-extrabold text-base">50+</span>
+              <span className="text-gray-600 text-xs">Cities</span>
+            </div>
+            <div className="w-px h-7 bg-gray-700" />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-white font-extrabold text-base">4.8★</span>
+              <span className="text-gray-600 text-xs">Rating</span>
+            </div>
+          </div>
         </motion.div>
       </div>
 
-      <footer className="text-center pb-8 text-xs text-gray-600">
+      <footer className="relative text-center pb-8 text-xs text-gray-700">
         © {new Date().getFullYear()}. Built with ♥ using{" "}
         <a
           href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
